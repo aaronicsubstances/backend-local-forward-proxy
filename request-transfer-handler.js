@@ -32,6 +32,9 @@ class RequestTransferHandler {
                     useBody = false;
                     const contentLenHeader = headers.find(x => /content-length/i.test(x[0]));
                     if (contentLenHeader && contentLenHeader[1]) {
+                        this._log("warn", "encountered GET/HEAD request with content-length " +
+                            "indicating non empty body. request will fail in all likelihood",
+                            contentLenHeader);
                         useBody = true;
                     }
                 }
@@ -49,17 +52,36 @@ class RequestTransferHandler {
                 })
                 .then(res => {
                     // send back any response code, even 4xx and 5xx ones.
-                    this._log('info', `Request to local endpoint ${targetUrl} has returned.`);
+                    this._log('info', `backend ${this.backendId} - Request to local endpoint ` +
+                        `${targetUrl} has returned.`);
                     this._transferResponse(res);
                 })
                 .catch(error => {
                     // request to localhost API failed.
+                    const failureReason = {};
                     if (error.name === "AbortError") {
-                        this._log('error', `Request to local endpoint ${targetUrl} timed out`);
+                        this._log('error', `backend ${this.backendId} - Request to local endpoint ` +
+                            `${targetUrl} timed out`);
+                        failureReason.remoteTimeout = true;
+                    }
+                    else if (error.name === 'FetchError') {
+                        this._log('error', `backend ${this.backendId} - Could not make request to ` +
+                            `local endpoint ${targetUrl}`, error.message);
+                        failureReason.error = error.message;
                     }
                     else {
-                        this._log('error', `Request to local endpoint ${targetUrl} encountered error`, error);
+                        this._log('error', `backend ${this.backendId} - Request to local endpoint ` +
+                            `${targetUrl} encountered error`, error);
+                        failureReason.error = "internal error occured at local forward proxy";
                     }
+
+                    // notify remote proxy to fail fast on this request. ignore any errors.
+                    const failFastUrl = `${this.remoteBaseUrl}/err/${this.backendId}/${this.requestMetadata.id}`;
+                    fetch(failFastUrl, {
+                        method: "POST",
+                        body: JSON.stringify(failureReason),
+                        headers: { 'Content-Type': 'application/json' },                        
+                    }).catch(() => {});
                 })
                 .finally(() => {
                     clearTimeout(timeout);
