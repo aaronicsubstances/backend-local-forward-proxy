@@ -2,6 +2,10 @@ function getRequestTimeoutMillis() {
     return parseInt(process.env.REQUEST_TIMEOUT_MILLIS) || 10000;
 }
 
+function getMaxBackendConnectionCount() {
+    return parseInt(process.env.MAX_BACKEND_CONNECTION_COUNT) || 1;
+}
+
 function getConnectionInfoList() {
     const connInfoList = new Array();
     const connInfoListFromConfig = JSON.parse(process.env.CONNECTION_INFO_LIST || '[]');
@@ -81,5 +85,6 @@ module.exports = {
     convertHeadersFromNativeToFetchFormat,
     arrayRemove,
     calculateReconnectInterval,
-    checkFetchResponseStatus
+    checkFetchResponseStatus,
+    getMaxBackendConnectionCount
 };
