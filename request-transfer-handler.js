@@ -44,7 +44,7 @@ class RequestTransferHandler {
                 fetch(targetUrl, {
                     method: this.requestMetadata.method,
                     headers,
-                    body: useBody ? reqBodyFetchRes : null,
+                    body: useBody ? reqBodyFetchRes.body : null,
                     signal: abortController.signal
                 })
                 .then(res => {
