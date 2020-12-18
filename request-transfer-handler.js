@@ -115,7 +115,7 @@ class RequestTransferHandler {
 
     _logFailure(msg, err) {
         logger.error(`backend ${this.backendId} - ${this.requestMetadata.id}. ${this.requestMetadata.method}`,
-            `"${this.requestMetadata.path}" -`, msg, err);
+            `"${this.requestMetadata.path}" -`, msg, err || '');
     }
 }
 

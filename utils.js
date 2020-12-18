@@ -1,5 +1,5 @@
 function getRequestTimeoutMillis() {
-    return parseInt(process.env.REQUEST_TIMEOUT_MILLIS) || 5000;
+    return parseInt(process.env.REQUEST_TIMEOUT_MILLIS) || 10000;
 }
 
 function getConnectionInfoList() {
