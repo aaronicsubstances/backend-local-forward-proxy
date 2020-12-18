@@ -53,7 +53,7 @@ class RequestTransferHandler {
                 .then(res => {
                     // send back any response code, even 4xx and 5xx ones.
                     this._log('info', `backend ${this.backendId} - Request to local endpoint ` +
-                        `${targetUrl} has returned.`);
+                        `${targetUrl} has returned ${res.status} ${res.statusText}.`);
                     this._transferResponse(res);
                 })
                 .catch(error => {
