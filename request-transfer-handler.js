@@ -111,7 +111,7 @@ class RequestTransferHandler {
 
     _log(level, msg, extra) {
         logger[level](`${this.requestMetadata.id}. ${this.requestMetadata.method}`,
-            `/${this.backendId}${this.requestMetadata.path} -`, msg, extra || '');
+            `${this.backendId}${this.requestMetadata.path} -`, msg, extra || '');
     }
 }
 
