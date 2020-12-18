@@ -10,6 +10,7 @@ class RequestTransferHandler {
         this.remoteBaseUrl = remoteBaseUrl;
         this.localBaseUrl = localBaseUrl;
         this.requestMetadata = requestMetadata;
+        this._log('info', `received for processing`);
     }
 
     start() {
@@ -17,7 +18,7 @@ class RequestTransferHandler {
         fetch(fetchRequestBodyUrl)
             .then(utils.checkFetchResponseStatus)
             .then(reqBodyFetchRes => {
-                this._logSuccess(`Fetch of request body from remote proxy successful`);
+                this._log('debug', `Fetch of request body from remote proxy successful`);
 
                 const targetUrl = this.localBaseUrl + this.requestMetadata.path;
                 const headers = utils.convertHeadersFromNativeToFetchFormat(this.requestMetadata.headers);
@@ -48,16 +49,16 @@ class RequestTransferHandler {
                 })
                 .then(res => {
                     // send back any response code, even 4xx and 5xx ones.
-                    this._logSuccess(`Request to local endpoint ${targetUrl} has returned.`);
+                    this._log('info', `Request to local endpoint ${targetUrl} has returned.`);
                     this._transferResponse(res);
                 })
                 .catch(error => {
                     // request to localhost API failed.
                     if (error.name === "AbortError") {
-                        this._logFailure(`Request to local endpoint ${targetUrl} timed out`);
+                        this._log('error', `Request to local endpoint ${targetUrl} timed out`);
                     }
                     else {
-                        this._logFailure(`Request to local endpoint ${targetUrl} encountered error`, error);
+                        this._log('error', `Request to local endpoint ${targetUrl} encountered error`, error);
                     }
                 })
                 .finally(() => {
@@ -66,7 +67,7 @@ class RequestTransferHandler {
             })
             .catch(error => {
                 // fetching of request body from remote proxy failed.
-                this._logFailure(`Fetch of request body from remote proxy unsuccessful`, error);
+                this._log('error', `Fetch of request body from remote proxy unsuccessful`, error);
             });
     }
 
@@ -85,7 +86,7 @@ class RequestTransferHandler {
         })
         .then(utils.checkFetchResponseStatus)
         .then(() => {
-            this._logSuccess(`response headers successfully sent to remote proxy`);
+            this._log('debug', `response headers successfully sent to remote proxy`);
             const transferResponseBodyUrl = `${this.remoteBaseUrl}/res-b/${this.backendId}/${this.requestMetadata.id}`;
             fetch(transferResponseBodyUrl, {
                 method: "POST",
@@ -96,26 +97,21 @@ class RequestTransferHandler {
             })
             .then(utils.checkFetchResponseStatus)
             .then(() => {
-                this._logSuccess(`response body successfully sent to remote proxy`);
+                this._log('info', `response completely sent to remote proxy`);
             })
             .catch(error => {
                 // final response body transfer to remote proxy failed.
-                this._logFailure(`transfer of response body to remote proxy encountered error`, error);
+                this._log('error', `transfer of response body to remote proxy encountered error`, error);
             })
         })
         .catch(error => {
-            this._logFailure('transfer of response headers to remote proxy unsuccesful', error);
+            this._log('error', 'transfer of response headers to remote proxy unsuccesful', error);
         });
     }
 
-    _logSuccess(msg) {
-        logger.info(`backend ${this.backendId} - ${this.requestMetadata.id}. ${this.requestMetadata.method}`,
-            `"${this.requestMetadata.path}" -`, msg);
-    }
-
-    _logFailure(msg, err) {
-        logger.error(`backend ${this.backendId} - ${this.requestMetadata.id}. ${this.requestMetadata.method}`,
-            `"${this.requestMetadata.path}" -`, msg, err || '');
+    _log(level, msg, extra) {
+        logger[level](`${this.requestMetadata.id}. ${this.requestMetadata.method}`,
+            `/${this.backendId}${this.requestMetadata.path} -`, msg, extra || '');
     }
 }
 
