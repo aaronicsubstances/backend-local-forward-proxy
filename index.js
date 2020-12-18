@@ -58,11 +58,21 @@ class RemoteProxyConnection {
 }
 
 const connInfoList = utils.getConnectionInfoList();
-logger.info(`Found ${connInfoList.length} long polling connections to create`);
+let activeConnCnt = 0;
 for (const connInfo of connInfoList) {
+    if (connInfo[0].startsWith("#") || connInfo[1].startsWith("#")
+            || connInfo[2].startsWith("#")) {
+        logger.warn("This connection configuration item looks commented out,",
+            "and hence will be skipped:", connInfo);
+        continue;
+    }
     new RemoteProxyConnection(connInfo[0], connInfo[1], connInfo[2]).start();
+    activeConnCnt++;
 }
+logger.info(`${activeConnCnt} long polling connection${activeConnCnt === 1 ? '' : 's'} started`);
 
-// prevent script from exiting.
-const SOME_HUGE_INTERVAL = 1 << 30;
-setInterval(() => {}, SOME_HUGE_INTERVAL);
+if (activeConnCnt > 0) {
+    // prevent script from exiting.
+    const SOME_HUGE_INTERVAL = 1 << 30;
+    setInterval(() => {}, SOME_HUGE_INTERVAL);
+}
