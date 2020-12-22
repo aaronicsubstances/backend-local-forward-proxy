@@ -127,8 +127,7 @@ class RemoteProxyConnection {
 const connInfoList = utils.getConnectionInfoList();
 let activeConnCnt = 0;
 for (const connInfo of connInfoList) {
-    if (connInfo[0].startsWith("#") || connInfo[1].startsWith("#")
-            || connInfo[2].startsWith("#")) {
+    if (connInfo[0].startsWith("#")) {
         logger.warn("This connection configuration item looks commented out,",
             "and hence will be skipped:", connInfo);
         continue;
@@ -137,7 +136,7 @@ for (const connInfo of connInfoList) {
     activeConnCnt++;
 }
 logger.info(`${activeConnCnt} backend receiver${activeConnCnt === 1 ? '' : 's'} started with max`,
-    `long polling connection count of ${utils.getMaxBackendConnectionCount()} `);
+    `long polling connection count of ${utils.getMaxBackendConnectionCount()}  each`);
 
 if (activeConnCnt > 0) {
     // prevent script from exiting.

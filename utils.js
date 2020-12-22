@@ -7,22 +7,9 @@ function getMaxBackendConnectionCount() {
 }
 
 function getConnectionInfoList() {
-    const connInfoList = new Array();
-    const connInfoListFromConfig = JSON.parse(process.env.CONNECTION_INFO_LIST || '[]');
-    if (connInfoListFromConfig.length % 3 > 0) {
-        throw new Error("number of entries in connection info list must be multiple of 3");
-    }
-    for (let i = 0; i < connInfoListFromConfig.length; i+=3) {
-        const backendId = connInfoListFromConfig[i];
-        const remoteBaseUrl = connInfoListFromConfig[i+1];
-        const localBaseUrl = connInfoListFromConfig[i+2];
-        connInfoList.push([ backendId, remoteBaseUrl, localBaseUrl ]);
-    }
-    if (!connInfoList.length) {
-        // add defaults.
-        connInfoList.push(['ccebe604-9e4e-4185-9a93-eddd247001b0', 'http://localhost:5100',
-            'https://www.google.com']);
-    }
+    const connInfoList = JSON.parse(process.env.CONNECTION_INFO_LIST || '[]')
+        .filter(x => x.length === 3 && typeof x[0]==='string' && 
+            typeof x[1]==='string' && typeof x[2]==='string');
     // remove trailing slashes from base urls.
     for (const connInfo of connInfoList) {
         const remoteBaseUrl = connInfo[1];
