@@ -3,7 +3,7 @@ function getRequestTimeoutMillis() {
 }
 
 function getMaxBackendConnectionCount() {
-    return parseInt(process.env.MAX_BACKEND_CONNECTION_COUNT) || 1;
+    return parseInt(process.env.MAX_BACKEND_CONNECTION_COUNT) || 5;
 }
 
 function getConnectionInfoList() {
