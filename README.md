@@ -9,15 +9,15 @@ Launch with
 npm start
 ```
 
-See .env.sample for available environment variables to use. The most important of them is CONNECTION_INFO_LIST, which has to be set for the application to run.   Also available is REQUEST_TIMEOUT_MILLIS, which defaults to 10 seconds.
+See .env.sample for available environment variables to use. The most important of them is CONNECTION_INFO_LIST, which has to be set for the application to run. Also available is REQUEST_TIMEOUT_MILLIS, which defaults to 10 seconds.
 
-The CONNECTION_INFO_LIST environment variable is a JSON array of nested arrays, where each nested array has 3 elements:
+The CONNECTION_INFO_LIST environment variable is a serialized JSON array, where each array item has 3 fields:
 
-   * uuid/guid identifying a target url to a backend-reverse-proxy instance.
-   * backend-reverse-proxy base url
-   * target web application base url
+   * `targetAppId`: uuid/guid identifying a target url to a backend-reverse-proxy instance.
+   * `reverseProxyBaseUrl`: backend-reverse-proxy base url
+   * `targetAppBaseUrl`: target web application base url
 
-To "comment out" a nested array, let its first item start with "#".    
+To "comment out" an item in the array, let its targetAppId field start with "#".
 
 ## Architecture
 
@@ -39,3 +39,5 @@ To "comment out" a nested array, let its first item start with "#".
 Remote clients make http request to backend-reverse-proxy deployments at paths with prefix/base of the form **/main/\[target_app_id\]**, where *target_app_id* is a uuid/guid configured at a running backend-local-forward-proxy instance to map to a given target app base url.
 
 By this arrangement, a single online remote proxy deployment can serve multiple localhost proxies, as long as each localhost proxy is careful to use a different set of uuids/guids.
+
+Although the entire language above refers to project as running on localhost, actually this project can be deployed online and still used to target apps which are accessible to the deployment, but inaccessible to remote clients (e.g. behind firewall or VPN).

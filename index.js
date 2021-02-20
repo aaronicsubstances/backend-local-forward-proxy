@@ -8,12 +8,12 @@ const RequestTransferHandler = require("./request-transfer-handler");
 dotenv.config();
 
 class RemoteProxyConnection {
-    constructor(backendId, remoteBaseUrl, localBaseUrl) {
+    constructor(connInfo) {
         this.connectionCount = 1;
         this.failureCount = 0;
-        this.backendId = backendId;
-        this.remoteBaseUrl = remoteBaseUrl;
-        this.localBaseUrl = localBaseUrl;
+        this.targetAppId = connInfo.targetAppId;
+        this.reverseProxyBaseUrl = connInfo.reverseProxyBaseUrl;
+        this.targetAppBaseUrl = connInfo.targetAppBaseUrl;
     }
 
     start() {
@@ -44,7 +44,7 @@ class RemoteProxyConnection {
                     this.failureCount = 0;
                     // increment connectionCount, but cap by configured maximum.
                     this.connectionCount = Math.min(this.connectionCount + 1,
-                        utils.getMaxBackendConnectionCount());
+                        utils.getMaxTargetConnectionCount());
                     this._nextRun();
                 }
                 else {
@@ -89,22 +89,22 @@ class RemoteProxyConnection {
     }
 
     _connectToRemoteProxy() {
-        const fetchUrl = `${this.remoteBaseUrl}/req-h/${this.backendId}`;
+        const fetchUrl = `${this.reverseProxyBaseUrl}/req-h/${this.targetAppId}`;
         return fetch(fetchUrl)
             .then(utils.checkFetchResponseStatus)
             .then(res => res.json())
             .then(res => {
                 if (res.id) {
-                    logger.debug(`pending request found for backend ${this.backendId} with id ${res.id}`);
-                    new RequestTransferHandler(this.backendId,
-                        this.remoteBaseUrl, this.localBaseUrl, res).start();
+                    logger.debug(`pending request found for target ${this.targetAppId} with id ${res.id}`);
+                    new RequestTransferHandler(this.targetAppId,
+                        this.reverseProxyBaseUrl, this.targetAppBaseUrl, res).start();
                     return {
                         foundWorkToDo: true
                     };
                 }
                 else {
                     // no work found.
-                    logger.debug(`no pending request found for backend ${this.backendId}`);
+                    logger.debug(`no pending request found for target ${this.targetAppId}`);
                     return {
                         // neither succeeded nor failed.
                     };
@@ -112,10 +112,10 @@ class RemoteProxyConnection {
             })
             .catch(err => {
                 if (err.name === 'FetchError') {
-                    logger.warn(`Unsuccessful fetch for backend ${this.backendId}:`, err.message);
+                    logger.warn(`Unsuccessful fetch for target ${this.targetAppId}:`, err.message);
                 }
                 else {
-                    logger.error(`An error occured during fetch for backend ${this.backendId}`, err);
+                    logger.error(`An error occured during fetch for target ${this.targetAppId}`, err);
                 }
                 return {
                     failed: true,
@@ -127,16 +127,16 @@ class RemoteProxyConnection {
 const connInfoList = utils.getConnectionInfoList();
 let activeConnCnt = 0;
 for (const connInfo of connInfoList) {
-    if (connInfo[0].startsWith("#")) {
+    if (connInfo.targetAppId.startsWith("#")) {
         logger.warn("This connection configuration item looks commented out,",
             "and hence will be skipped:", connInfo);
         continue;
     }
-    new RemoteProxyConnection(connInfo[0], connInfo[1], connInfo[2]).start();
+    new RemoteProxyConnection(connInfo).start();
     activeConnCnt++;
 }
-logger.info(`${activeConnCnt} backend receiver${activeConnCnt === 1 ? '' : 's'} started with max`,
-    `long polling connection count of ${utils.getMaxBackendConnectionCount()}  each`);
+logger.info(`${activeConnCnt} target receiver${activeConnCnt === 1 ? '' : 's'} started with max`,
+    `long polling connection count of ${utils.getMaxTargetConnectionCount()} each`);
 
 if (activeConnCnt > 0) {
     // prevent script from exiting.

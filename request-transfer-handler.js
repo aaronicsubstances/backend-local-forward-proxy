@@ -5,22 +5,22 @@ const logger = require("./logger");
 const utils = require("./utils");
 
 class RequestTransferHandler {
-    constructor(backendId, remoteBaseUrl, localBaseUrl, requestMetadata) {
-        this.backendId = backendId;
-        this.remoteBaseUrl = remoteBaseUrl;
-        this.localBaseUrl = localBaseUrl;
+    constructor(targetAppId, reverseProxyBaseUrl, targetAppBaseUrl, requestMetadata) {
+        this.targetAppId = targetAppId;
+        this.reverseProxyBaseUrl = reverseProxyBaseUrl;
+        this.targetAppBaseUrl = targetAppBaseUrl;
         this.requestMetadata = requestMetadata;
         this._log('info', `received for processing`);
     }
 
     start() {
-        const fetchRequestBodyUrl = `${this.remoteBaseUrl}/req-b/${this.backendId}/${this.requestMetadata.id}`;
+        const fetchRequestBodyUrl = `${this.reverseProxyBaseUrl}/req-b/${this.targetAppId}/${this.requestMetadata.id}`;
         fetch(fetchRequestBodyUrl)
             .then(utils.checkFetchResponseStatus)
             .then(reqBodyFetchRes => {
                 this._log('debug', `Fetch of request body from remote proxy successful`);
 
-                const targetUrl = this.localBaseUrl + this.requestMetadata.path;
+                const targetUrl = `${this.targetAppBaseUrl}${this.requestMetadata.path}`;
                 const headers = utils.convertHeadersFromNativeToFetchFormat(this.requestMetadata.headers);
 
                 // because node-fetch throws error if "GET" or "HEAD" request is made
@@ -52,31 +52,31 @@ class RequestTransferHandler {
                 })
                 .then(res => {
                     // send back any response code, even 4xx and 5xx ones.
-                    this._log('info', `backend ${this.backendId} - Request to local endpoint ` +
+                    this._log('info', `target ${this.targetAppId} - Request to ` +
                         `${targetUrl} has returned ${res.status} ${res.statusText}.`);
                     this._transferResponse(res);
                 })
                 .catch(error => {
-                    // request to localhost API failed.
+                    // request to target API failed.
                     const failureReason = {};
                     if (error.name === "AbortError") {
-                        this._log('error', `backend ${this.backendId} - Request to local endpoint ` +
+                        this._log('error', `target ${this.targetAppId} - Request to ` +
                             `${targetUrl} timed out`);
                         failureReason.remoteTimeout = true;
                     }
                     else if (error.name === 'FetchError') {
-                        this._log('error', `backend ${this.backendId} - Could not make request to ` +
-                            `local endpoint ${targetUrl}`, error.message);
+                        this._log('error', `target ${this.targetAppId} - Could not make request to ` +
+                            `${targetUrl}`, error.message);
                         failureReason.error = error.message;
                     }
                     else {
-                        this._log('error', `backend ${this.backendId} - Request to local endpoint ` +
+                        this._log('error', `target ${this.targetAppId} - Request to ` +
                             `${targetUrl} encountered error`, error);
                         failureReason.error = "internal error occured at local forward proxy";
                     }
 
                     // notify remote proxy to fail fast on this request. ignore any errors.
-                    const failFastUrl = `${this.remoteBaseUrl}/err/${this.backendId}/${this.requestMetadata.id}`;
+                    const failFastUrl = `${this.reverseProxyBaseUrl}/err/${this.targetAppId}/${this.requestMetadata.id}`;
                     fetch(failFastUrl, {
                         method: "POST",
                         body: JSON.stringify(failureReason),
@@ -94,7 +94,7 @@ class RequestTransferHandler {
     }
 
     _transferResponse(res) {
-        const transferResponseMetadataUrl = `${this.remoteBaseUrl}/res-h/${this.backendId}`;
+        const transferResponseMetadataUrl = `${this.reverseProxyBaseUrl}/res-h/${this.targetAppId}`;
         const responseMetadata = {
             id: this.requestMetadata.id,
             statusCode: res.status,
@@ -109,7 +109,7 @@ class RequestTransferHandler {
         .then(utils.checkFetchResponseStatus)
         .then(() => {
             this._log('debug', `response headers successfully sent to remote proxy`);
-            const transferResponseBodyUrl = `${this.remoteBaseUrl}/res-b/${this.backendId}/${this.requestMetadata.id}`;
+            const transferResponseBodyUrl = `${this.reverseProxyBaseUrl}/res-b/${this.targetAppId}/${this.requestMetadata.id}`;
             fetch(transferResponseBodyUrl, {
                 method: "POST",
                 body: res.body,
@@ -133,7 +133,7 @@ class RequestTransferHandler {
 
     _log(level, msg, extra) {
         logger[level](`${this.requestMetadata.id}. ${this.requestMetadata.method}`,
-            `${this.backendId}${this.requestMetadata.path} -`, msg, extra || '');
+            `${this.targetAppId}${this.requestMetadata.path} -`, msg, extra || '');
     }
 }
 

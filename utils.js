@@ -2,23 +2,22 @@ function getRequestTimeoutMillis() {
     return parseInt(process.env.REQUEST_TIMEOUT_MILLIS) || 10000;
 }
 
-function getMaxBackendConnectionCount() {
-    return parseInt(process.env.MAX_BACKEND_CONNECTION_COUNT) || 5;
+function getMaxTargetConnectionCount() {
+    return parseInt(process.env.MAX_TARGET_CONNECTION_COUNT) || 5;
 }
 
 function getConnectionInfoList() {
-    const connInfoList = JSON.parse(process.env.CONNECTION_INFO_LIST || '[]')
-        .filter(x => x.length === 3 && typeof x[0]==='string' && 
-            typeof x[1]==='string' && typeof x[2]==='string');
+    const connInfoList = JSON.parse(process.env.CONNECTION_INFO_LIST || '[]');
+    
     // remove trailing slashes from base urls.
     for (const connInfo of connInfoList) {
-        const remoteBaseUrl = connInfo[1];
-        const localBaseUrl = connInfo[2];
-        if (remoteBaseUrl.endsWith("/")) {
-            connInfo[1] = remoteBaseUrl.substring(0, remoteBaseUrl.length - 1);
+        if (connInfo.reverseProxyBaseUrl.endsWith("/")) {
+            connInfo.reverseProxyBaseUrl = connInfo.reverseProxyBaseUrl.substring(0,
+                connInfo.reverseProxyBaseUrl.length - 1);
         }
-        if (localBaseUrl.endsWith("/")) {
-            connInfo[2] = localBaseUrl.substring(0, localBaseUrl.length - 1);
+        if (connInfo.targetAppBaseUrl.endsWith("/")) {
+            connInfo.targetAppBaseUrl = connInfo.targetAppBaseUrl.substring(0,
+                connInfo.targetAppBaseUrl.length - 1);
         }
     }
     return connInfoList;
@@ -73,5 +72,5 @@ module.exports = {
     arrayRemove,
     calculateReconnectInterval,
     checkFetchResponseStatus,
-    getMaxBackendConnectionCount
+    getMaxTargetConnectionCount
 };
