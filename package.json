@@ -30,6 +30,8 @@
     "abort-controller": "^3.0.0",
     "dotenv": "^8.2.0",
     "node-fetch": "^2.6.1",
+    "socket.io-client": "^4.3.2",
+    "socket.io-stream": "^0.9.1",
     "uuid": "^8.3.2"
   }
 }

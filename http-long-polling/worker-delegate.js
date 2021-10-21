@@ -20,12 +20,9 @@ class WorkerDelegate {
             .then(reqBodyFetchRes => {
                 this._log('debug', `Fetch of request body from remote proxy successful`);
 
-                const targetUrl = `${this.targetAppBaseUrl}${this.requestMetadata.path}`;
-                const method = this.requestMetadata.method;
-                const headers = utils.convertHeadersFromNativeToFetchFormat(this.requestMetadata.headers);
-
-                api.forwardRequest(targetUrl, method, headers, reqBodyFetchRes,
+                api.forwardRequest(this.targetAppBaseUrl, this.requestMetadata, reqBodyFetchRes,
                     (error, targetUrlRes) => {
+                        const targetUrl = `${this.targetAppBaseUrl}${this.requestMetadata.path}`;
                         if (targetUrlRes) {                            
                             this._log('info', `target ${this.targetAppId} - Request to ` +
                                 `${targetUrl} has returned ${targetUrlRes.status} ${targetUrlRes.statusText}.`);

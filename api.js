@@ -4,7 +4,11 @@ const fetch = require("node-fetch");
 const logger = require("./logger");
 const utils = require("./utils");
 
-function forwardRequest(targetUrl, method, headers, body, cb) {
+function forwardRequest(targetAppBaseUrl, pendingTransfer, body, cb) {
+    const targetUrl = `${targetAppBaseUrl}${pendingTransfer.path}`;
+    const method = pendingTransfer.method;
+    const headers = utils.convertHeadersFromNativeToFetchFormat(pendingTransfer.headers);
+
     // because node-fetch throws error if "GET" or "HEAD" request is made
     // with a non-null body, even if null, rather than skip accepting bodies
     // for those verbs, we will rather make it fail
