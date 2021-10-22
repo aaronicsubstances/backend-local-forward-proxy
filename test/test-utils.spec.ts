@@ -1,6 +1,6 @@
-const assert = require('assert').strict;
+import { assert } from "chai";
 
-const utils = require("../utils");
+import * as utils from "../src/utils";
 
 describe('utils', function(){
     describe('#convertHeadersFromNativeToFetchFormat', function() {

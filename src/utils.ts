@@ -1,13 +1,15 @@
-function getRequestTimeoutMillis() {
-    return parseInt(process.env.REQUEST_TIMEOUT_MILLIS) || 10000;
+import { PollingConnectionConfig } from "./types";
+
+export function getRequestTimeoutMillis() {
+    return parseInt(process.env.REQUEST_TIMEOUT_MILLIS || "") || 10000;
 }
 
-function getMaxTargetConnectionCount() {
-    return parseInt(process.env.MAX_TARGET_CONNECTION_COUNT) || 5;
+export function getMaxTargetConnectionCount() {
+    return parseInt(process.env.MAX_TARGET_CONNECTION_COUNT || "") || 5;
 }
 
-function getConnectionInfoList() {
-    const connInfoList = JSON.parse(process.env.CONNECTION_INFO_LIST || '[]');
+export function getConnectionInfoList() {
+    const connInfoList = JSON.parse(process.env.CONNECTION_INFO_LIST || '[]') as PollingConnectionConfig[];
     
     // remove trailing slashes from base urls.
     for (const connInfo of connInfoList) {
@@ -23,9 +25,9 @@ function getConnectionInfoList() {
     return connInfoList;
 }
 
-function convertHeadersFromNativeToFetchFormat(nativeHeaders) {
+export function convertHeadersFromNativeToFetchFormat(nativeHeaders: Array<string>) {
     // skip host and connection headers. host interferes with TLS expectations.
-    const fetchHeaders = new Array();
+    const fetchHeaders = new Array<Array<string>>();
     for (let i = 0; i < nativeHeaders.length; i += 2) {
         if (/^(host|connection)$/i.test(nativeHeaders[i])) {
             continue;
@@ -35,7 +37,7 @@ function convertHeadersFromNativeToFetchFormat(nativeHeaders) {
     return fetchHeaders;
 }
 
-function arrayRemove(arr, value) {
+export function arrayRemove<T>(arr: Array<T>, value: T) {
     for (let i = 0; i < arr.length; i++) {
         if ( arr[i] === value) {
             arr.splice(i, 1);
@@ -44,7 +46,7 @@ function arrayRemove(arr, value) {
     }
 }
 
-function calculateReconnectInterval(retryCount) {
+export function calculateReconnectInterval(retryCount: number) {
     // use exponential backoff
     let time = 1000;
     const maxTime = 30000;
@@ -56,7 +58,7 @@ function calculateReconnectInterval(retryCount) {
     return Math.min(time, maxTime);
 }
 
-function checkFetchResponseStatus(res) {    
+export function checkFetchResponseStatus(res: any) {    
     if (res.ok) { // res.status >= 200 && res.status < 300
         return res;
     }
@@ -64,13 +66,3 @@ function checkFetchResponseStatus(res) {
         throw new Error(res.statusText);
     }
 }
-
-module.exports = {
-    getRequestTimeoutMillis,
-    getConnectionInfoList,
-    convertHeadersFromNativeToFetchFormat,
-    arrayRemove,
-    calculateReconnectInterval,
-    checkFetchResponseStatus,
-    getMaxTargetConnectionCount
-};

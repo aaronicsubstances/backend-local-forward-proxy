@@ -1,10 +1,16 @@
-const AbortController = require("abort-controller");
-const fetch = require("node-fetch");
+import AbortController from "abort-controller";
+import fetch from "node-fetch";
+import { Readable } from "stream";
 
-const logger = require("./logger");
-const utils = require("./utils");
+import * as logger from "./logger";
+import { FowardRequestCallback, PendingTransfer } from "./types";
+import * as utils from  "./utils";
 
-function forwardRequest(targetAppBaseUrl, pendingTransfer, body, cb) {
+export function forwardRequest(
+        targetAppBaseUrl: string, 
+        pendingTransfer: PendingTransfer, 
+        body: Readable,
+        cb: FowardRequestCallback) {
     const targetUrl = `${targetAppBaseUrl}${pendingTransfer.path}`;
     const method = pendingTransfer.method;
     const headers = utils.convertHeadersFromNativeToFetchFormat(pendingTransfer.headers);
@@ -19,7 +25,7 @@ function forwardRequest(targetAppBaseUrl, pendingTransfer, body, cb) {
         const contentLenHeader = headers.find(x => /content-length/i.test(x[0]));
         if (contentLenHeader && contentLenHeader[1]) {
             logger.warn("encountered GET/HEAD request with content-length " +
-                "indicating non empty body. request will fail in all likelihood: " +
+                "indicating non empty body. request will fail in all likelihood: %j",
                 contentLenHeader);
             useBody = true;
         }
@@ -36,19 +42,15 @@ function forwardRequest(targetAppBaseUrl, pendingTransfer, body, cb) {
         body: useBody ? body : null,
         signal: abortController.signal
     })
-    .then(res => {
+    .then((res: any) => {
         // send back any response code, even 4xx and 5xx ones.
         cb(null, res);
     })
-    .catch(error => {
+    .catch((error: Error) => {
         // request to target API failed.
-        cb(error);
+        cb(error, null);
     })
     .finally(() => {
         clearTimeout(timeout);
     });
 }
-
-module.exports = {
-    forwardRequest
-};

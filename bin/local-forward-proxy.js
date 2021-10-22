@@ -1,16 +1,16 @@
-const dotenv = require('dotenv')
+const dotenv = require('dotenv');
 
-const logger = require("./logger");
-const utils = require("./utils");
-//const { PollingAgent } = require("./http-long-polling");
-const { DuplexAgent } = require('./web-socket/duplex-agent');
+const logger = require("../dist/logger.js");
+const utils = require("../dist/utils.js");
+//const { PollingAgent } = require("../dist/http-long-polling");
+const { DuplexAgent } = require('../dist/web-socket/duplex-agent');
 
 dotenv.config();
 
 const connInfoList = utils.getConnectionInfoList();
 let activeConnCnt = 0;
 for (const connInfo of connInfoList) {
-    if (connInfo.targetAppId.startsWith("#")) {
+    if (connInfo.exclude) {
         logger.warn("This connection configuration item looks commented out,",
             "and hence will be skipped:", connInfo);
         continue;

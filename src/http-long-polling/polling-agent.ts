@@ -1,23 +1,27 @@
-const fetch = require("node-fetch");
+import fetch from "node-fetch";
 
-const logger = require("../logger");
-const utils = require("../utils");
-const { WorkerDelegate } = require("./worker-delegate");
+import * as logger from "../logger";
+import { PendingTransfer } from "../types";
+import * as utils from "../utils";
+import { WorkerDelegate } from "./worker-delegate";
 
-class PollingAgent {
-    constructor(targetAppId, reverseProxyBaseUrl, targetAppBaseUrl) {
-        this.connectionCount = 1;
-        this.failureCount = 0;
-        this.targetAppId = targetAppId;
-        this.reverseProxyBaseUrl = reverseProxyBaseUrl;
-        this.targetAppBaseUrl = targetAppBaseUrl;
+export class PollingAgent {
+    #targetAppId: string
+    #reverseProxyBaseUrl: string
+    #targetAppBaseUrl: string
+    #connectionCount = 1;
+    #failureCount = 0;
+    constructor(targetAppId: string, reverseProxyBaseUrl: string, targetAppBaseUrl: string) {
+        this.#targetAppId = targetAppId;
+        this.#reverseProxyBaseUrl = reverseProxyBaseUrl;
+        this.#targetAppBaseUrl = targetAppBaseUrl;
     }
 
     start() {
-        this._nextRun();
+        this.#nextRun();
     }
 
-    _nextRun() {
+    #nextRun() {
         /*
         idea is that as long as we find work to do, increase number of connections to remote proxy.
         else maintain just one connection.
@@ -35,37 +39,37 @@ class PollingAgent {
             unless it didn't find work. in which case reset both success and failure cnt
             and fire single connection with no reconnection interval
         */
-        this._createNextRoundOfMultipleConnections()
+        this.#createNextRoundOfMultipleConnections()
             .then(result => {
                 if (result.allConnectionsPickedUpWork) {
-                    this.failureCount = 0;
+                    this.#failureCount = 0;
                     // increment connectionCount, but cap by configured maximum.
-                    this.connectionCount = Math.min(this.connectionCount + 1,
+                    this.#connectionCount = Math.min(this.#connectionCount + 1,
                         utils.getMaxTargetConnectionCount());
-                    this._nextRun();
+                    this.#nextRun();
                 }
                 else {
-                    this.connectionCount = 1; // reset.
+                    this.#connectionCount = 1; // reset.
                     if (result.someFailed) {
-                        this.failureCount++;
+                        this.#failureCount++;
             
                         // delay for some time before reconnecting.
-                        setTimeout(() => this._nextRun(), 
-                            utils.calculateReconnectInterval(this.failureCount));
+                        setTimeout(() => this.#nextRun(), 
+                            utils.calculateReconnectInterval(this.#failureCount));
                     }
                     else {
-                        this.failureCount = 0;
-                        this._nextRun();
+                        this.#failureCount = 0;
+                        this.#nextRun();
                     }
                 }
             });
     }
 
-    _createNextRoundOfMultipleConnections() {
+    #createNextRoundOfMultipleConnections(): Promise<{allConnectionsPickedUpWork: boolean, someFailed: boolean}> {
         return new Promise((resolutionFunc, rejectionFunc) => {
             let interimSuccessCount = 0, interimFailureCount = 0, returnCount = 0;
-            for (let i = 0; i < this.connectionCount; i++) {
-                this._connectToRemoteProxy()
+            for (let i = 0; i < this.#connectionCount; i++) {
+                this.#connectToRemoteProxy()
                     .then(result => {
                         returnCount++;
                         if (result.foundWorkToDo) {
@@ -74,9 +78,9 @@ class PollingAgent {
                         if (result.failed) {
                             interimFailureCount++;
                         }
-                        if (returnCount === this.connectionCount) {
+                        if (returnCount === this.#connectionCount) {
                             resolutionFunc({
-                                allConnectionsPickedUpWork: interimSuccessCount === this.connectionCount, 
+                                allConnectionsPickedUpWork: interimSuccessCount === this.#connectionCount, 
                                 someFailed: interimFailureCount > 0
                             });
                         }
@@ -85,34 +89,35 @@ class PollingAgent {
         });
     }
 
-    _connectToRemoteProxy() {
-        const fetchUrl = `${this.reverseProxyBaseUrl}/req-h/${this.targetAppId}`;
+    #connectToRemoteProxy(): Promise<{ failed?: boolean, foundWorkToDo?: boolean }> {
+        const fetchUrl = `${this.#reverseProxyBaseUrl}/req-h/${this.#targetAppId}`;
         return fetch(fetchUrl)
             .then(utils.checkFetchResponseStatus)
-            .then(res => res.json())
-            .then(res => {
+            .then((res: any) => res.json())
+            .then((res: PendingTransfer) => {
                 if (res.id) {
-                    logger.debug(`pending request found for target ${this.targetAppId} with id ${res.id}`);
-                    new WorkerDelegate(this.targetAppId,
-                        this.reverseProxyBaseUrl, this.targetAppBaseUrl, res).start();
+                    logger.debug(`pending request found for target ${this.#targetAppId} with id ${res.id}`);
+                    new WorkerDelegate(this.#targetAppId,
+                        this.#reverseProxyBaseUrl, this.#targetAppBaseUrl, res).start();
                     return {
+                        f: false,
                         foundWorkToDo: true
                     };
                 }
                 else {
                     // no work found.
-                    logger.debug(`no pending request found for target ${this.targetAppId}`);
+                    logger.debug(`no pending request found for target ${this.#targetAppId}`);
                     return {
                         // neither succeeded nor failed.
                     };
                 }
             })
-            .catch(err => {
+            .catch((err: Error) => {
                 if (err.name === 'FetchError') {
-                    logger.warn(`Unsuccessful fetch for target ${this.targetAppId}:`, err.message);
+                    logger.warn(`Unsuccessful fetch for target ${this.#targetAppId}:`, err.message);
                 }
                 else {
-                    logger.error(`An error occured during fetch for target ${this.targetAppId}`, err);
+                    logger.error(`An error occured during fetch for target ${this.#targetAppId}`, err);
                 }
                 return {
                     failed: true,
