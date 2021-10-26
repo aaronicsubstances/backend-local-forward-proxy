@@ -9,19 +9,50 @@ export class PollingAgent {
     #targetAppId: string
     #reverseProxyBaseUrl: string
     #targetAppBaseUrl: string
-    #connectionCount = 1;
-    #failureCount = 0;
-    constructor(targetAppId: string, reverseProxyBaseUrl: string, targetAppBaseUrl: string) {
+    #connectionCount = 1
+    #failureCount = 0
+    #stopped = false
+    #maxTargetConnectionCount: number
+    #apiTimeout?: number
+
+    constructor(targetAppId: string, 
+            reverseProxyBaseUrl: string, targetAppBaseUrl: string,
+            maxTargetConnectionCount?: number, apiTimeout?: number) {
+        // ensure no trailing slashes in urls
+        if (reverseProxyBaseUrl.endsWith("/")) {
+            reverseProxyBaseUrl = reverseProxyBaseUrl.substring(0,
+                reverseProxyBaseUrl.length - 1);
+        }
+        if (targetAppBaseUrl.endsWith("/")) {
+            targetAppBaseUrl = targetAppBaseUrl.substring(0,
+                targetAppBaseUrl.length - 1);
+        }
+
         this.#targetAppId = targetAppId;
         this.#reverseProxyBaseUrl = reverseProxyBaseUrl;
         this.#targetAppBaseUrl = targetAppBaseUrl;
+        this.#maxTargetConnectionCount = maxTargetConnectionCount || 5;
+        this.#apiTimeout = apiTimeout;
+    }
+
+    stop() {
+        this.#stopped = true;
     }
 
     start() {
-        this.#nextRun();
+        if (this.#stopped) {
+
+        }
+        else {
+            this.#nextRun();
+        }
     }
 
     #nextRun() {
+        if (this.#stopped) {
+            return;
+        }
+
         /*
         idea is that as long as we find work to do, increase number of connections to remote proxy.
         else maintain just one connection.
@@ -44,8 +75,8 @@ export class PollingAgent {
                 if (result.allConnectionsPickedUpWork) {
                     this.#failureCount = 0;
                     // increment connectionCount, but cap by configured maximum.
-                    this.#connectionCount = Math.min(this.#connectionCount + 1,
-                        utils.getMaxTargetConnectionCount());
+                    this.#connectionCount = Math.max(1, Math.min(this.#connectionCount + 1,
+                        this.#maxTargetConnectionCount));
                     this.#nextRun();
                 }
                 else {
@@ -98,7 +129,7 @@ export class PollingAgent {
                 if (res.id) {
                     logger.debug(`pending request found for target ${this.#targetAppId} with id ${res.id}`);
                     new WorkerDelegate(this.#targetAppId,
-                        this.#reverseProxyBaseUrl, this.#targetAppBaseUrl, res).start();
+                        this.#reverseProxyBaseUrl, this.#targetAppBaseUrl, res, this.#apiTimeout).start();
                     return {
                         f: false,
                         foundWorkToDo: true

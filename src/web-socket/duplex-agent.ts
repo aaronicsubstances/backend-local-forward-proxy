@@ -14,18 +14,46 @@ import * as logger from "../logger";
 import { Readable } from "stream";
 
 export class DuplexAgent {
-    #targetAppId: string;
-    #reverseProxyBaseUrl: string;
-    #targetAppBaseUrl: string;
+    #targetAppId: string
+    #reverseProxyBaseUrl: string
+    #targetAppBaseUrl: string
+    #apiTimeout?: number
+    #client: any
+    #stopped = false
 
-    constructor(targetAppId: string, reverseProxyBaseUrl: string, targetAppBaseUrl: string) {
+    constructor(targetAppId: string,
+            reverseProxyBaseUrl: string, targetAppBaseUrl: string,
+            apiTimeout?: number) {
+        // ensure no trailing slashes in urls
+        if (reverseProxyBaseUrl.endsWith("/")) {
+            reverseProxyBaseUrl = reverseProxyBaseUrl.substring(0,
+                reverseProxyBaseUrl.length - 1);
+        }
+        if (targetAppBaseUrl.endsWith("/")) {
+            targetAppBaseUrl = targetAppBaseUrl.substring(0,
+                targetAppBaseUrl.length - 1);
+        }
+        
         this.#targetAppId = targetAppId;
         this.#reverseProxyBaseUrl = reverseProxyBaseUrl;
         this.#targetAppBaseUrl = targetAppBaseUrl;
+        this.#apiTimeout = apiTimeout;
+    }
+
+    stop() {
+        this.#stopped = true;
+        if (this.#client) {
+            this.#client.disconnect();
+        }
     }
 
     start() {
+        if (this.#stopped) {
+            return;
+        }
+
         const client = io(this.#reverseProxyBaseUrl, { transports: ["websocket"] });
+        this.#client = client;
         const pendingTransfers = new Map<string, PendingTransfer>();
         client.on("connect", () => {
             logger.warn("[%s] connected", this.#targetAppId);
@@ -63,7 +91,7 @@ export class DuplexAgent {
             
             this.#logDebug(pendingTransfer, `Fetch of request body from remote proxy successful`);
 
-            api.forwardRequest(this.#targetAppBaseUrl, pendingTransfer, stream,
+            api.forwardRequest(this.#targetAppBaseUrl, pendingTransfer, stream, this.#apiTimeout,
                 (error, targetUrlRes) => {
                     const targetUrl = `${this.#targetAppBaseUrl}${pendingTransfer.path}`;
                     if (targetUrlRes) {

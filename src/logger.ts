@@ -1,7 +1,15 @@
 import logger, { LogLevels } from "npmlog";
 
+let _enableVerboseLogs: boolean | undefined;
+let _omitLogTimestamps: boolean | undefined;
+
+export function setLoggerOptions(enableVerboseLogs?: boolean, omitLogTimestamps?: boolean) {
+    _enableVerboseLogs = enableVerboseLogs;
+    _omitLogTimestamps = omitLogTimestamps;
+}
+
 export function debug(message: string, ...args: any[]) {
-    if (process.env.DEBUG) {
+    if (_enableVerboseLogs) {
       _log("verbose", message, args);
     }
 }
@@ -19,7 +27,6 @@ export function error(message: string, ...args: any[]) {
 }
 
 function _log(level: LogLevels, message: string, args: any[]) {
-    const prefix = process.env.OMIT_LOG_TIMESTAMP ? "" :
-        new Date().toISOString();
+    const prefix = _omitLogTimestamps ? "" : new Date().toISOString();
     logger.log(level, prefix, message, ...args);
 }

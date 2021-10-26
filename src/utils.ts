@@ -1,30 +1,3 @@
-import { PollingConnectionConfig } from "./types";
-
-export function getRequestTimeoutMillis() {
-    return parseInt(process.env.REQUEST_TIMEOUT_MILLIS || "") || 10000;
-}
-
-export function getMaxTargetConnectionCount() {
-    return parseInt(process.env.MAX_TARGET_CONNECTION_COUNT || "") || 5;
-}
-
-export function getConnectionInfoList() {
-    const connInfoList = JSON.parse(process.env.CONNECTION_INFO_LIST || '[]') as PollingConnectionConfig[];
-    
-    // remove trailing slashes from base urls.
-    for (const connInfo of connInfoList) {
-        if (connInfo.reverseProxyBaseUrl.endsWith("/")) {
-            connInfo.reverseProxyBaseUrl = connInfo.reverseProxyBaseUrl.substring(0,
-                connInfo.reverseProxyBaseUrl.length - 1);
-        }
-        if (connInfo.targetAppBaseUrl.endsWith("/")) {
-            connInfo.targetAppBaseUrl = connInfo.targetAppBaseUrl.substring(0,
-                connInfo.targetAppBaseUrl.length - 1);
-        }
-    }
-    return connInfoList;
-}
-
 export function convertHeadersFromNativeToFetchFormat(nativeHeaders: Array<string>) {
     // skip host and connection headers. host interferes with TLS expectations.
     const fetchHeaders = new Array<Array<string>>();

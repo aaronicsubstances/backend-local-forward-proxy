@@ -10,6 +10,7 @@ export function forwardRequest(
         targetAppBaseUrl: string, 
         pendingTransfer: PendingTransfer, 
         body: Readable,
+        apiTimeout: number | undefined,
         cb: FowardRequestCallback) {
     const targetUrl = `${targetAppBaseUrl}${pendingTransfer.path}`;
     const method = pendingTransfer.method;
@@ -31,10 +32,13 @@ export function forwardRequest(
         }
     }
     
+    if (!apiTimeout || (apiTimeout as number) < 0) {
+        apiTimeout = 10000;
+    }
     const abortController = new AbortController();
     const timeout = setTimeout(() => {
         abortController.abort();
-    }, utils.getRequestTimeoutMillis());
+    }, apiTimeout);
 
     fetch(targetUrl, {
         method,

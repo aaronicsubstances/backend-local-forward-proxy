@@ -14,14 +14,18 @@ export class WorkerDelegate {
     #reverseProxyBaseUrl: string;
     #targetAppBaseUrl: string;
     #requestMetadata: PendingTransfer
+    #apiTimeout?: number
+
     constructor(targetAppId: string, 
             reverseProxyBaseUrl: string,
             targetAppBaseUrl: string,
-            requestMetadata: PendingTransfer) {
+            requestMetadata: PendingTransfer,
+            apiTimeout?: number) {
         this.#targetAppId = targetAppId;
         this.#reverseProxyBaseUrl = reverseProxyBaseUrl;
         this.#targetAppBaseUrl = targetAppBaseUrl;
         this.#requestMetadata = requestMetadata;
+        this.#apiTimeout = apiTimeout;
         this.#logInfo(`received for processing`);
     }
 
@@ -32,7 +36,7 @@ export class WorkerDelegate {
             .then((reqBodyFetchRes: Readable) => {
                 this.#logDebug(`Fetch of request body from remote proxy successful`);
 
-                api.forwardRequest(this.#targetAppBaseUrl, this.#requestMetadata, reqBodyFetchRes,
+                api.forwardRequest(this.#targetAppBaseUrl, this.#requestMetadata, reqBodyFetchRes, this.#apiTimeout,
                     (error, targetUrlRes) => {
                         const targetUrl = `${this.#targetAppBaseUrl}${this.#requestMetadata.path}`;
                         if (targetUrlRes) {                            
