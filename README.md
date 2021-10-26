@@ -38,13 +38,13 @@ To "comment out" an item in the array, include an `exclude` field in the item wh
 
    1. remote client makes http request to running instance of backend-reverse-proxy on the Internet. reverse-proxy records http request and puts remote client on hold, waiting for local-forward-proxy to pick it up for processing.
    
-   2. backend-local-forward-proxy continuously polls reverse-proxy, and eventually discovers and picks up http request headers and body from remote client.
+   2. backend-local-forward-proxy makes the equivalent of http long polling of reverse-proxy (done efficiently with web socket), and eventually discovers and picks up http request headers and body from remote client.
 
    3. local-forward-proxy makes normal http request to target localhost service (the one remote client actually wants to reach but cannot reach directly) using received request headers and body.
 
    4. target localhost service responds to local-forward-proxy with http response headers and body.
  
-   5. local-forward-proxy makes normal http request to reverse-proxy, and transfers received response headers and body to it.
+   5. local-forward-proxy transfers received response headers and body to reverse proxy through the equivalent of a normal http request (once again done efficiently with web socket).
 
    6. reverse-proxy wakes up remote client and transfers received response headers and body to it as its final response.
 
@@ -60,7 +60,10 @@ To help with that, adapt the code from [bin/local-forward-proxy.js](https://gith
 
 ```js
 class DuplexAgent {
-    constructor(targetAppId: string, reverseProxyBaseUrl: string, targetAppBaseUrl: string, requestTimeoutMillis?: number);
+    constructor(targetAppId: string,
+        reverseProxyBaseUrl: string,
+        targetAppBaseUrl: string,
+        requestTimeoutMillis?: number);
     stop(): void;
     start(): void;
 }
