@@ -13,11 +13,11 @@ export class PollingAgent {
     #failureCount = 0
     #stopped = false
     #maxTargetConnectionCount: number
-    #apiTimeout?: number
+    #requestTimeoutMillis?: number
 
     constructor(targetAppId: string, 
             reverseProxyBaseUrl: string, targetAppBaseUrl: string,
-            maxTargetConnectionCount?: number, apiTimeout?: number) {
+            maxTargetConnectionCount?: number, requestTimeoutMillis?: number) {
         // ensure no trailing slashes in urls
         if (reverseProxyBaseUrl.endsWith("/")) {
             reverseProxyBaseUrl = reverseProxyBaseUrl.substring(0,
@@ -32,7 +32,7 @@ export class PollingAgent {
         this.#reverseProxyBaseUrl = reverseProxyBaseUrl;
         this.#targetAppBaseUrl = targetAppBaseUrl;
         this.#maxTargetConnectionCount = maxTargetConnectionCount || 5;
-        this.#apiTimeout = apiTimeout;
+        this.#requestTimeoutMillis = requestTimeoutMillis;
     }
 
     stop() {
@@ -129,7 +129,7 @@ export class PollingAgent {
                 if (res.id) {
                     logger.debug(`pending request found for target ${this.#targetAppId} with id ${res.id}`);
                     new WorkerDelegate(this.#targetAppId,
-                        this.#reverseProxyBaseUrl, this.#targetAppBaseUrl, res, this.#apiTimeout).start();
+                        this.#reverseProxyBaseUrl, this.#targetAppBaseUrl, res, this.#requestTimeoutMillis).start();
                     return {
                         f: false,
                         foundWorkToDo: true

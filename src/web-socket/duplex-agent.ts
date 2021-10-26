@@ -17,13 +17,13 @@ export class DuplexAgent {
     #targetAppId: string
     #reverseProxyBaseUrl: string
     #targetAppBaseUrl: string
-    #apiTimeout?: number
+    #requestTimeoutMillis?: number
     #client: any
     #stopped = false
 
     constructor(targetAppId: string,
             reverseProxyBaseUrl: string, targetAppBaseUrl: string,
-            apiTimeout?: number) {
+            requestTimeoutMillis?: number) {
         // ensure no trailing slashes in urls
         if (reverseProxyBaseUrl.endsWith("/")) {
             reverseProxyBaseUrl = reverseProxyBaseUrl.substring(0,
@@ -33,11 +33,11 @@ export class DuplexAgent {
             targetAppBaseUrl = targetAppBaseUrl.substring(0,
                 targetAppBaseUrl.length - 1);
         }
-        
+
         this.#targetAppId = targetAppId;
         this.#reverseProxyBaseUrl = reverseProxyBaseUrl;
         this.#targetAppBaseUrl = targetAppBaseUrl;
-        this.#apiTimeout = apiTimeout;
+        this.#requestTimeoutMillis = requestTimeoutMillis;
     }
 
     stop() {
@@ -91,7 +91,7 @@ export class DuplexAgent {
             
             this.#logDebug(pendingTransfer, `Fetch of request body from remote proxy successful`);
 
-            api.forwardRequest(this.#targetAppBaseUrl, pendingTransfer, stream, this.#apiTimeout,
+            api.forwardRequest(this.#targetAppBaseUrl, pendingTransfer, stream, this.#requestTimeoutMillis,
                 (error, targetUrlRes) => {
                     const targetUrl = `${this.#targetAppBaseUrl}${pendingTransfer.path}`;
                     if (targetUrlRes) {

@@ -6,18 +6,21 @@ Works together with [backend-reverse-proxy](https://github.com/aaronicsubstances
 
 Launch with 
 ```
-npm start
+npm install -g backend-local-forward-proxy
+local-forward-proxy
 ```
 
-See .env.sample for available environment variables to use. The most important of them is CONNECTION_INFO_LIST, which has to be set for the application to run. Also available is REQUEST_TIMEOUT_MILLIS, which defaults to 10 seconds.
+The configuration for the script is dependent on environment variables. As a convenience, the current directory from which `local-forward-proxy` script is launched can contain .env.json and .env files for completing the setup. See .env.sample and .env.json.sample for available environment variables to use.
 
-The CONNECTION_INFO_LIST environment variable is a serialized JSON array, where each array item has 3 fields:
+The most important of them is CONNECTION_INFO_LIST, which has to be set for the application to run. Also available is REQUEST_TIMEOUT_MILLIS, which defaults to 10 seconds.
+
+The CONNECTION_INFO_LIST environment variable is a JSON array (or serialised JSON array), where each array item has 3 fields:
 
    * `targetAppId`: uuid/guid identifying a target url to a backend-reverse-proxy instance.
    * `reverseProxyBaseUrl`: backend-reverse-proxy base url
    * `targetAppBaseUrl`: target web application base url
 
-To "comment out" an item in the array, let its targetAppId field start with "#".
+To "comment out" an item in the array, include an `exclude` field in the item which is set to true.
 
 ## Architecture
 
@@ -40,4 +43,16 @@ Remote clients make http request to backend-reverse-proxy deployments at paths w
 
 By this arrangement, a single online remote proxy deployment can serve multiple localhost proxies, as long as each localhost proxy is careful to use a different set of uuids/guids.
 
+## API
+
 Although the entire language above refers to project as running on localhost, actually this project can be deployed online and still used to target apps which are accessible to the deployment, but inaccessible to remote clients (e.g. behind firewall or VPN).
+
+To help with that, adapt the code from [bin/local-forward-proxy.js](https://github.com/aaronicsubstances/backend-local-forward-proxy/tree/main/bin/local-forward-proxy.js) as needed. The most important class/function provided is:
+
+```js
+class DuplexAgent {
+    constructor(targetAppId: string, reverseProxyBaseUrl: string, targetAppBaseUrl: string, requestTimeoutMillis?: number);
+    stop(): void;
+    start(): void;
+}
+```
