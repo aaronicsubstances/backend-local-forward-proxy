@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const dotenv = require("dotenv");
 const nconf = require("nconf");
 

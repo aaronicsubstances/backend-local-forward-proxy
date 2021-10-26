@@ -4,7 +4,16 @@ Works together with [backend-reverse-proxy](https://github.com/aaronicsubstances
 
 ## Setup
 
-Launch with 
+Launch with
+ 
+```
+npm init # can skip this if there is an existing project to install into
+npm install backend-local-forward-proxy
+node_modules/.bin/local-forward-proxy
+```
+
+Or install globally with
+
 ```
 npm install -g backend-local-forward-proxy
 local-forward-proxy
