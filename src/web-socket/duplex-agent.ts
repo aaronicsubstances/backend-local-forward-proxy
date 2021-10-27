@@ -24,6 +24,10 @@ export class DuplexAgent {
     constructor(targetAppId: string,
             reverseProxyBaseUrl: string, targetAppBaseUrl: string,
             requestTimeoutMillis?: number) {
+        if (typeof targetAppId !== "string") {
+            throw new Error("targetAppId must be a string. Received: " + targetAppId);
+        }
+        
         // ensure no trailing slashes in urls
         if (reverseProxyBaseUrl.endsWith("/")) {
             reverseProxyBaseUrl = reverseProxyBaseUrl.substring(0,

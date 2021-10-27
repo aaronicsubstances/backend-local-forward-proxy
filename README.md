@@ -7,8 +7,8 @@ Works together with [backend-reverse-proxy](https://github.com/aaronicsubstances
 Launch with
  
 ```
-npm init # can skip this if there is an existing project to install into
-npm install backend-local-forward-proxy
+npm install backend-local-forward-proxy # assumes existing project 
+                                        # to install into
 node_modules/.bin/local-forward-proxy
 ```
 
@@ -19,8 +19,12 @@ npm install -g backend-local-forward-proxy
 local-forward-proxy
 ```
 
-The configuration for the script is dependent on environment variables. As a convenience, the current directory from which `local-forward-proxy` script is launched can contain .env.json and .env files for completing the setup. See .env.sample and .env.json.sample for available environment variables to use.
+The configuration for the script is dependent on environment variables. As a convenience, the current directory from which `local-forward-proxy` script is launched can contain .env.json and .env files for completing the setup.
 
+See [.env](https://github.com/aaronicsubstances/backend-local-forward-proxy/tree/main/.env.sample)
+and
+[.env.json](https://github.com/aaronicsubstances/backend-local-forward-proxy/tree/main/.env.json.sample)
+for available environment variables to use.
 The most important of them is CONNECTION_INFO_LIST, which has to be set for the application to run. Also available is REQUEST_TIMEOUT_MILLIS, which defaults to 10 seconds.
 
 The CONNECTION_INFO_LIST environment variable is a JSON array (or serialised JSON array), where each array item has 3 fields:
