@@ -1,9 +1,15 @@
 import fetch from "node-fetch";
+import { Readable } from "stream";
 
+import * as api from "../api";
 import * as logger from "../logger";
-import { PendingTransfer } from "../types";
+import {
+    FailureNotification,
+    PendingTransfer,
+    PendingTransferKey,
+    ResponseHeadersNotification
+} from "../types";
 import * as utils from "../utils";
-import { WorkerDelegate } from "./worker-delegate";
 
 export class PollingAgent {
     #targetAppId: string
@@ -131,8 +137,7 @@ export class PollingAgent {
             .then((res: PendingTransfer) => {
                 if (res.id) {
                     logger.debug(`pending request found for target ${this.#targetAppId} with id ${res.id}`);
-                    new WorkerDelegate(this.#targetAppId,
-                        this.#reverseProxyBaseUrl, this.#targetAppBaseUrl, res, this.#requestTimeoutMillis).start();
+                    this.#startTransferWork(res);
                     return {
                         f: false,
                         foundWorkToDo: true
@@ -157,6 +162,129 @@ export class PollingAgent {
                     failed: true,
                 };
             });
+    }
+
+    #startTransferWork(pendingTransfer: PendingTransfer) {
+        const fetchRequestBodyUrl = `${this.#reverseProxyBaseUrl}/req-b`;
+        fetch(fetchRequestBodyUrl, {
+            method: "POST",
+            body: JSON.stringify({
+                backendId: this.#targetAppId,
+                id: pendingTransfer.id
+            } as PendingTransferKey),
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(utils.checkFetchResponseStatus)
+            .then((reqBodyFetchRes: Readable) => {
+                this.#logDebug(pendingTransfer, `Fetch of request body from remote proxy successful`);
+
+                api.forwardRequest(this.#targetAppBaseUrl, pendingTransfer, reqBodyFetchRes, this.#requestTimeoutMillis,
+                    (error, targetUrlRes) => {
+                        const targetUrl = `${this.#targetAppBaseUrl}${pendingTransfer.path}`;
+                        if (targetUrlRes) {                            
+                            this.#logInfo(pendingTransfer, `target ${this.#targetAppId} - Request to ` +
+                                `${targetUrl} has returned ${targetUrlRes.status} ${targetUrlRes.statusText}.`);
+                            this.#transferResponse(pendingTransfer, targetUrlRes);
+                        }
+                        else {
+                            if (!error) {
+                                return;
+                            }
+
+                            // request to target API failed.
+                            const failureReason: FailureNotification = {
+                                backendId: this.#targetAppId,
+                                id: pendingTransfer.id
+                            };
+                            if (error.name === "AbortError") {
+                                this.#logError(pendingTransfer, `target ${this.#targetAppId} - Request to ` +
+                                    `${targetUrl} timed out`);
+                                failureReason.remoteTimeout = true;
+                            }
+                            else if (error.name === 'FetchError') {
+                                this.#logError(pendingTransfer, `target ${this.#targetAppId} - Could not make request to ` +
+                                    `${targetUrl} ${error.message}`);
+                                failureReason.error = error.message;
+                            }
+                            else {
+                                this.#logError(pendingTransfer, `target ${this.#targetAppId} - Request to ` +
+                                    `${targetUrl} encountered error ${error}`);
+                                failureReason.error = "internal error occured at local forward proxy";
+                            }
+
+                            // notify remote proxy to fail fast on this request. ignore any errors.
+                            const failFastUrl = `${this.#reverseProxyBaseUrl}/transfer-err`;
+                            fetch(failFastUrl, {
+                                method: "POST",
+                                body: JSON.stringify(failureReason),
+                                headers: { 'Content-Type': 'application/json' },                        
+                            }).catch(() => {});
+                        }
+                    });
+            })
+            .catch((error: Error) => {
+                // fetching of request body from remote proxy failed.
+                this.#logError(pendingTransfer, `Fetch of request body from remote proxy unsuccessful ${error}r`);
+            });
+    }
+
+    #transferResponse(pendingTransfer: PendingTransfer, res: any) {
+        const transferResponseMetadataUrl = `${this.#reverseProxyBaseUrl}/res-h`;
+        const responseMetadata: ResponseHeadersNotification = {
+            id: pendingTransfer.id,
+            backendId: this.#targetAppId,
+            statusCode: res.status as number,
+            statusMessage: res.statusText as string,
+            headers: res.headers.raw() as Record<string, string[]>
+        };
+        fetch(transferResponseMetadataUrl, {
+            method: "POST",
+            body:    JSON.stringify(responseMetadata),
+            headers: { 'Content-Type': 'application/json' },
+        })
+        .then(utils.checkFetchResponseStatus)
+        .then(() => {
+            this.#logDebug(pendingTransfer, `response headers successfully sent to remote proxy`);
+            const transferResponseBodyUrl = `${this.#reverseProxyBaseUrl}/res-b/${this.#targetAppId}/${pendingTransfer.id}`;
+            fetch(transferResponseBodyUrl, {
+                method: "POST",
+                body: res.body,
+                // very important to set content type as binary so that body parsers
+                // in remote proxy can leave it alone.
+                headers: { 'Content-Type': 'application/octet-stream' }
+            })
+            .then(utils.checkFetchResponseStatus)
+            .then(() => {
+                this.#logInfo(pendingTransfer, `response completely sent to remote proxy`);
+            })
+            .catch((error: Error) => {
+                // final response body transfer to remote proxy failed.
+                this.#logError(pendingTransfer, `transfer of response body to remote proxy encountered error ${error}`);
+            })
+        })
+        .catch((error: Error) => {
+            this.#logError(pendingTransfer, `transfer of response headers to remote proxy unsuccesful ${error}`);
+        });
+    }
+
+    #logDebug(pendingTransfer: PendingTransfer, msg: string) {
+        logger.debug("%s. %s %s%s - %s", pendingTransfer.id, pendingTransfer.method,
+            this.#targetAppId, pendingTransfer.path, msg);
+    }
+
+    #logInfo(pendingTransfer: PendingTransfer, msg: string) {
+        logger.info("%s. %s %s%s - %s", pendingTransfer.id, pendingTransfer.method,
+            this.#targetAppId, pendingTransfer.path, msg);
+    }
+
+    #logWarn(pendingTransfer: PendingTransfer, msg: string) {
+        logger.warn("%s. %s %s%s - %s", pendingTransfer.id, pendingTransfer.method,
+            this.#targetAppId, pendingTransfer.path, msg);
+    }
+
+    #logError(pendingTransfer: PendingTransfer, msg: string) {
+        logger.error("%s. %s %s%s - %s", pendingTransfer.id, pendingTransfer.method,
+            this.#targetAppId, pendingTransfer.path, msg);
     }
 }
 

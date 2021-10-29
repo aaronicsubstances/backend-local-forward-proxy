@@ -64,19 +64,19 @@ export class DuplexAgent {
             // start looking for requests.
             pendingTransfers.clear();
             const pollReq: PollRequest = { backendId: this.#targetAppId };
-            client.emit("req-h", pollReq);
+            client.emit("/req-h", pollReq);
         });
         client.on("disconnect", (reason) => {
             logger.warn("[%s] disconnected due to %s", this.#targetAppId, reason);
         });
-        client.on("req-h", (res: PendingTransfer) => {
+        client.on("/req-h", (res: PendingTransfer) => {
             if (res.id) {
                 this.#logDebug(res, `pending request found for target ${this.#targetAppId} with id ${res.id}`);
                 pendingTransfers.set(res.id, res);
 
                 // fetch corresponding response body
                 const transferKey: PendingTransferKey = { backendId: this.#targetAppId, id: res.id }
-                client.emit("req-b", transferKey);
+                client.emit("/req-b", transferKey);
             }
             else {
                 logger.debug(`no pending request found for target ${this.#targetAppId}`);
@@ -84,9 +84,9 @@ export class DuplexAgent {
 
             // in any case try again looking for requests.
             const pollReq: PollRequest = { backendId: this.#targetAppId };
-            client.emit("req-h", pollReq);
+            client.emit("/req-h", pollReq);
         });
-        ss(client).on('req-b', (stream: Readable, res: PendingTransferKey) => {
+        ss(client).on('/req-b', (stream: Readable, res: PendingTransferKey) => {
             const pendingTransfer = pendingTransfers.get(res.id);
             if (!pendingTransfer) {
                 logger.error(`Transfer id ${res.id} not found`);
@@ -111,7 +111,7 @@ export class DuplexAgent {
                             statusMessage: targetUrlRes.statusText,
                             headers: targetUrlRes.headers.raw()
                         };
-                        client.emit("res-h", responseMetadata);
+                        client.emit("/res-h", responseMetadata);
                     }
                     else {
                         // request to target API failed.
@@ -142,11 +142,11 @@ export class DuplexAgent {
                         }
 
                         // notify remote proxy to fail fast on this request.
-                        client.emit("transfer-err", failureReason);
+                        client.emit("/transfer-err", failureReason);
                     }
                 });
         });
-        client.on("res-h", (res: PendingTransferAction) => {
+        client.on("/res-h", (res: PendingTransferAction) => {
             const pendingTransfer = pendingTransfers.get(res.id);
             if (!pendingTransfer) {
                 logger.error(`Transfer id ${res.id} not found`);
@@ -157,7 +157,7 @@ export class DuplexAgent {
 
                 const stream = ss.createStream();
                 const transferKey: PendingTransferKey = { backendId: this.#targetAppId, id: res.id };
-                ss(client).emit('res-b', stream, transferKey);
+                ss(client).emit('/res-b', stream, transferKey);
                 if (pendingTransfer.resBody) {
                     pendingTransfer.resBody.pipe(stream);
                 }
@@ -172,7 +172,7 @@ export class DuplexAgent {
                     res.error);
             }
         });
-        client.on('res-b', (res: PendingTransferAction) => {
+        client.on('/res-b', (res: PendingTransferAction) => {
             const pendingTransfer = pendingTransfers.get(res.id);
             if (!pendingTransfer) {
                 logger.error(`Transfer id ${res.id} not found`);
@@ -188,7 +188,7 @@ export class DuplexAgent {
                     res.error);
             }
         });
-        client.on("transfer-err", (res: PendingTransferAction) => {
+        client.on("/transfer-err", (res: PendingTransferAction) => {
             if (res.backendId !== this.#targetAppId) {
                 return;
             };
