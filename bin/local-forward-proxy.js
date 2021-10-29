@@ -31,15 +31,23 @@ for (const connInfo of connInfoList) {
         continue;
     }
 
-    /*new PollingAgent(connInfo.targetAppId,
+    /*const agent = new PollingAgent(connInfo.targetAppId,
         connInfo.reverseProxyBaseUrl,
         connInfo.targetAppBaseUrl,
         maxLongPollingConnectionCount,
-        requestTimeoutMillis).start();*/
-    new DuplexAgent(connInfo.targetAppId,
+        requestTimeoutMillis);*/
+    const agent = new DuplexAgent(connInfo.targetAppId,
         connInfo.reverseProxyBaseUrl,
         connInfo.targetAppBaseUrl,
-        requestTimeoutMillis).start();
+        requestTimeoutMillis);
+    agent.adjustReverseProxyPaths(
+        process.env.REQUEST_HEADERS_PATH,
+        process.env.REQUEST_BODY_PATH,
+        process.env.RESPONSE_HEADERS_PATH,
+        process.env.RESPONSE_BODY_PATH,
+        process.env.TRANSFER_ERROR_PATH,
+        process.env.WEB_SOCKET_PATH);
+    agent.start();
     activeConnCnt++;
 }
 

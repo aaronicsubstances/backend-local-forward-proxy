@@ -10,15 +10,6 @@ export function convertHeadersFromNativeToFetchFormat(nativeHeaders: Array<strin
     return fetchHeaders;
 }
 
-export function arrayRemove<T>(arr: Array<T>, value: T) {
-    for (let i = 0; i < arr.length; i++) {
-        if ( arr[i] === value) {
-            arr.splice(i, 1);
-            i--;
-        }
-    }
-}
-
 export function calculateReconnectInterval(retryCount: number) {
     // use exponential backoff
     let time = 1000;

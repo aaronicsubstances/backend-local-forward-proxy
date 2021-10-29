@@ -52,7 +52,7 @@ To "comment out" an item in the array, include an `exclude` field in the item wh
 
    6. reverse-proxy wakes up remote client and transfers received response headers and body to it as its final response.
 
-Remote clients make http request to backend-reverse-proxy deployments at paths with prefix/base of the form **/main/\[target_app_id\]**, where *target_app_id* is a uuid/guid configured at a running backend-local-forward-proxy instance to map to a given target app base url.
+Remote clients make http request to backend-reverse-proxy deployments at paths with prefix/base of the form **/main-\[target_app_id\]**, where *target_app_id* is a uuid/guid configured at a running backend-local-forward-proxy instance to map to a given target app base url.
 
 By this arrangement, a single online remote proxy deployment can serve multiple localhost proxies, as long as each localhost proxy is careful to use a different set of uuids/guids.
 
@@ -70,5 +70,12 @@ class DuplexAgent {
         requestTimeoutMillis?: number);
     stop(): void;
     start(): void;
+    adjustReverseProxyPaths(
+        reqHeadersPrefix: string,
+        reqBodyPrefix: string,
+        resHeadersPrefix: string, 
+        resBodyPrefix: string,
+        transferErrorPrefix: string,
+        webSocketPath?: string): void;
 }
 ```

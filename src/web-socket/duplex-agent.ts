@@ -20,6 +20,12 @@ export class DuplexAgent {
     #requestTimeoutMillis?: number
     #client: any
     #stopped = false
+    #reqHeadersPrefix = "/req-h"
+    #reqBodyPrefix = "/req-b"
+    #resHeadersPrefix = "/res-h" 
+    #resBodyPrefix = "/res-b"
+    #transferErrorPrefix = "/transfer-err"
+    #webSocketPath?: string
 
     constructor(targetAppId: string,
             reverseProxyBaseUrl: string, targetAppBaseUrl: string,
@@ -56,7 +62,10 @@ export class DuplexAgent {
             return;
         }
 
-        const client = io(this.#reverseProxyBaseUrl, { transports: ["websocket"] });
+        const client = io(this.#reverseProxyBaseUrl, {
+            path: this.#webSocketPath,
+            transports: ["websocket"]
+        });
         this.#client = client;
         const pendingTransfers = new Map<string, PendingTransfer>();
         client.on("connect", () => {
@@ -64,19 +73,19 @@ export class DuplexAgent {
             // start looking for requests.
             pendingTransfers.clear();
             const pollReq: PollRequest = { backendId: this.#targetAppId };
-            client.emit("/req-h", pollReq);
+            client.emit(this.#reqHeadersPrefix, pollReq);
         });
         client.on("disconnect", (reason) => {
             logger.warn("[%s] disconnected due to %s", this.#targetAppId, reason);
         });
-        client.on("/req-h", (res: PendingTransfer) => {
+        client.on(this.#reqHeadersPrefix, (res: PendingTransfer) => {
             if (res.id) {
                 this.#logDebug(res, `pending request found for target ${this.#targetAppId} with id ${res.id}`);
                 pendingTransfers.set(res.id, res);
 
                 // fetch corresponding response body
                 const transferKey: PendingTransferKey = { backendId: this.#targetAppId, id: res.id }
-                client.emit("/req-b", transferKey);
+                client.emit(this.#reqBodyPrefix, transferKey);
             }
             else {
                 logger.debug(`no pending request found for target ${this.#targetAppId}`);
@@ -84,9 +93,9 @@ export class DuplexAgent {
 
             // in any case try again looking for requests.
             const pollReq: PollRequest = { backendId: this.#targetAppId };
-            client.emit("/req-h", pollReq);
+            client.emit(this.#reqHeadersPrefix, pollReq);
         });
-        ss(client).on('/req-b', (stream: Readable, res: PendingTransferKey) => {
+        ss(client).on(this.#reqBodyPrefix, (stream: Readable, res: PendingTransferKey) => {
             const pendingTransfer = pendingTransfers.get(res.id);
             if (!pendingTransfer) {
                 logger.error(`Transfer id ${res.id} not found`);
@@ -111,7 +120,7 @@ export class DuplexAgent {
                             statusMessage: targetUrlRes.statusText,
                             headers: targetUrlRes.headers.raw()
                         };
-                        client.emit("/res-h", responseMetadata);
+                        client.emit(this.#resHeadersPrefix, responseMetadata);
                     }
                     else {
                         // request to target API failed.
@@ -142,11 +151,11 @@ export class DuplexAgent {
                         }
 
                         // notify remote proxy to fail fast on this request.
-                        client.emit("/transfer-err", failureReason);
+                        client.emit(this.#transferErrorPrefix, failureReason);
                     }
                 });
         });
-        client.on("/res-h", (res: PendingTransferAction) => {
+        client.on(this.#resHeadersPrefix, (res: PendingTransferAction) => {
             const pendingTransfer = pendingTransfers.get(res.id);
             if (!pendingTransfer) {
                 logger.error(`Transfer id ${res.id} not found`);
@@ -157,7 +166,7 @@ export class DuplexAgent {
 
                 const stream = ss.createStream();
                 const transferKey: PendingTransferKey = { backendId: this.#targetAppId, id: res.id };
-                ss(client).emit('/res-b', stream, transferKey);
+                ss(client).emit(this.#resBodyPrefix, stream, transferKey);
                 if (pendingTransfer.resBody) {
                     pendingTransfer.resBody.pipe(stream);
                 }
@@ -172,7 +181,7 @@ export class DuplexAgent {
                     res.error);
             }
         });
-        client.on('/res-b', (res: PendingTransferAction) => {
+        client.on(this.#resBodyPrefix, (res: PendingTransferAction) => {
             const pendingTransfer = pendingTransfers.get(res.id);
             if (!pendingTransfer) {
                 logger.error(`Transfer id ${res.id} not found`);
@@ -188,7 +197,7 @@ export class DuplexAgent {
                     res.error);
             }
         });
-        client.on("/transfer-err", (res: PendingTransferAction) => {
+        client.on(this.#transferErrorPrefix, (res: PendingTransferAction) => {
             if (res.backendId !== this.#targetAppId) {
                 return;
             };
@@ -198,6 +207,21 @@ export class DuplexAgent {
                 this.#logWarn(pendingTransfer, "remote proxy failed transfer due to " + res.error);
             }
         });
+    }
+
+    adjustReverseProxyPaths(
+            reqHeadersPrefix: string,
+            reqBodyPrefix: string,
+            resHeadersPrefix: string, 
+            resBodyPrefix: string,
+            transferErrorPrefix: string,
+            webSocketPath?: string) {
+        this.#reqHeadersPrefix = reqHeadersPrefix || "/req-h";
+        this.#reqBodyPrefix = reqBodyPrefix || "/req-b";
+        this.#resHeadersPrefix = resHeadersPrefix || "/res-h";
+        this.#resBodyPrefix = resBodyPrefix || "/res-b";
+        this.#transferErrorPrefix = transferErrorPrefix || "/transfer-err";
+        this.#webSocketPath = webSocketPath;
     }
 
     #logDebug(pendingTransfer: PendingTransfer, msg: string) {

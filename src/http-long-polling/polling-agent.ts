@@ -20,6 +20,11 @@ export class PollingAgent {
     #stopped = false
     #maxTargetConnectionCount: number
     #requestTimeoutMillis?: number
+    #reqHeadersPrefix = "/req-h"
+    #reqBodyPrefix = "/req-b"
+    #resHeadersPrefix = "/res-h" 
+    #resBodyPrefix = "/res-b"
+    #transferErrorPrefix = "/transfer-err"
 
     constructor(targetAppId: string, 
             reverseProxyBaseUrl: string, targetAppBaseUrl: string,
@@ -55,6 +60,19 @@ export class PollingAgent {
         else {
             this.#nextRun();
         }
+    }
+
+    adjustReverseProxyPaths(
+            reqHeadersPrefix: string,
+            reqBodyPrefix: string,
+            resHeadersPrefix: string, 
+            resBodyPrefix: string,
+            transferErrorPrefix: string) {
+        this.#reqHeadersPrefix = reqHeadersPrefix || "/req-h";
+        this.#reqBodyPrefix = reqBodyPrefix || "/req-b";
+        this.#resHeadersPrefix = resHeadersPrefix || "/res-h";
+        this.#resBodyPrefix = resBodyPrefix || "/res-b";
+        this.#transferErrorPrefix = transferErrorPrefix || "/transfer-err";
     }
 
     #nextRun() {
@@ -130,7 +148,7 @@ export class PollingAgent {
     }
 
     #connectToRemoteProxy(): Promise<{ failed?: boolean, foundWorkToDo?: boolean }> {
-        const fetchUrl = `${this.#reverseProxyBaseUrl}/req-h/${this.#targetAppId}`;
+        const fetchUrl = `${this.#reverseProxyBaseUrl}${this.#reqHeadersPrefix}/${this.#targetAppId}`;
         return fetch(fetchUrl)
             .then(utils.checkFetchResponseStatus)
             .then((res: any) => res.json())
@@ -165,7 +183,7 @@ export class PollingAgent {
     }
 
     #startTransferWork(pendingTransfer: PendingTransfer) {
-        const fetchRequestBodyUrl = `${this.#reverseProxyBaseUrl}/req-b`;
+        const fetchRequestBodyUrl = `${this.#reverseProxyBaseUrl}${this.#reqBodyPrefix}`;
         fetch(fetchRequestBodyUrl, {
             method: "POST",
             body: JSON.stringify({
@@ -213,7 +231,7 @@ export class PollingAgent {
                             }
 
                             // notify remote proxy to fail fast on this request. ignore any errors.
-                            const failFastUrl = `${this.#reverseProxyBaseUrl}/transfer-err`;
+                            const failFastUrl = `${this.#reverseProxyBaseUrl}${this.#transferErrorPrefix}`;
                             fetch(failFastUrl, {
                                 method: "POST",
                                 body: JSON.stringify(failureReason),
@@ -229,7 +247,7 @@ export class PollingAgent {
     }
 
     #transferResponse(pendingTransfer: PendingTransfer, res: any) {
-        const transferResponseMetadataUrl = `${this.#reverseProxyBaseUrl}/res-h`;
+        const transferResponseMetadataUrl = `${this.#reverseProxyBaseUrl}${this.#resHeadersPrefix}`;
         const responseMetadata: ResponseHeadersNotification = {
             id: pendingTransfer.id,
             backendId: this.#targetAppId,
@@ -245,7 +263,7 @@ export class PollingAgent {
         .then(utils.checkFetchResponseStatus)
         .then(() => {
             this.#logDebug(pendingTransfer, `response headers successfully sent to remote proxy`);
-            const transferResponseBodyUrl = `${this.#reverseProxyBaseUrl}/res-b/${this.#targetAppId}/${pendingTransfer.id}`;
+            const transferResponseBodyUrl = `${this.#reverseProxyBaseUrl}${this.#resBodyPrefix}/${this.#targetAppId}/${pendingTransfer.id}`;
             fetch(transferResponseBodyUrl, {
                 method: "POST",
                 body: res.body,
