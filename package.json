@@ -26,7 +26,7 @@
     "localhost",
     "http"
   ],
-  "author": "Aaron Baffour-Awuah",
+  "author": "aaronicsubstances",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/aaronicsubstances/backend-local-forward-proxy/issues"
